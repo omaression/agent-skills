@@ -46,7 +46,7 @@ Route portfolio project work through buildx pipelines (full or lite) with custom
 
 Cache: `openai-codex/*` → `long`, `opencode-go/*` → `short`, `anthropic/*` → `short`.
 
-Opus only in: full buildx planning/judge, tradeoff proposals, review-resolve-b escalation. Never in buildx-lite.
+Opus only in: full buildx judge, tradeoff proposals. Never in buildx-lite. Planning uses kimi-k2.5 for long-context architecture work. Research escalates to gpt-5.4.
 
 ## Buildx pipeline (full, 12 steps)
 
