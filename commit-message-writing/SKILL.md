@@ -1,34 +1,20 @@
 ---
 name: commit-message-writing
-description: Strict Conventional Commits v1.0.0 and SemVer commit discipline for git work. Use when preparing a commit, staging changes, writing or revising a commit message, deciding whether to split changes into multiple commits, planning a commit sequence, summarizing changes for a commit, discussing changelogs or releases, or after finishing any meaningful implementation unit even if the user did not explicitly ask to commit.
+description: Strict Conventional Commits v1.0.0, atomic commit discipline, and Trunk-Based Development guardrails for git work. Use when preparing a commit, staging changes, writing or revising a commit message, deciding whether to split changes, planning branch strategy for a feature/bug/fix, opening or reviewing pull requests, or after finishing any meaningful implementation unit.
 ---
 
 # Commit Message Writing
 
-Write every commit as a valid Conventional Commit and keep each commit atomic.
-
-## Enforcement model
-
-Use two layers together:
-
-1. `/.githooks/commit-msg` hard-blocks invalid commit messages at commit time.
-2. This skill provides planning discipline: split changes correctly, choose the right type, and explain SemVer impact.
-
-If the hook is not active yet, run:
-
-```bash
-bash scripts/install-git-hooks.sh
-```
-
-This sets `core.hooksPath=.githooks` for the repository so the tracked hook is used automatically.
+Every commit: valid Conventional Commit, atomic, on the right short-lived branch.
 
 ## Required workflow
 
-1. Check `git status --short` and `git diff --stat`.
-2. Decide whether the current changes are one logical unit.
-3. If multiple concerns are mixed, split them before committing. Do not batch unrelated work.
-4. Pick the most specific commit type.
-5. Write the message in this exact shape:
+1. `git status --short` and `git diff --stat`.
+2. Verify you're on a short-lived branch dedicated to one feature, bug, fix, or coding area. If not, create/switch first.
+3. Confirm the changes are one logical unit. If mixed, split before committing.
+4. Confirm automated tests appropriate to the scope will run.
+5. Pick the most specific commit type.
+6. Write the message:
 
 ```text
 <type>[optional scope][!]: <imperative lowercase description>
@@ -38,106 +24,53 @@ This sets `core.hooksPath=.githooks` for the repository so the tracked hook is u
 [optional footer(s)]
 ```
 
-6. Validate the message before commit, even though the hook will also enforce it.
-7. State SemVer impact when the user asks for release or version advice.
+7. Validate with `scripts/validate_commit_message.py` before committing.
 
 ## Hard rules
 
+- One short-lived branch per feature, bug, fix, or distinct coding area.
+- Keep branches narrow, merge back quickly, avoid long-lived divergence.
+- Every PR must have robust automated tests so bugs are caught early.
 - Always include a lowercase type followed by `: `.
-- Use `feat` for new features.
-- Use `fix` for bug fixes.
-- Keep the description imperative, lowercase, and without a trailing period.
-- Keep the description at 72 characters or fewer.
-- Start the body one blank line after the description.
-- Start footers one blank line after the body, or one blank line after the description if there is no body.
-- Use footer format `Token: value`.
-- Use hyphens instead of spaces in footer tokens, except `BREAKING CHANGE`.
-- Use `!` and/or a `BREAKING CHANGE:` footer for breaking changes.
+- Imperative, lowercase description, no trailing period, ≤72 chars.
+- Body: one blank line after description. Footers: one blank line after body.
+- Footer format: `Token: value`. Hyphens in tokens except `BREAKING CHANGE`.
+- Use `!` and/or `BREAKING CHANGE:` footer for breaking changes.
 - Never use `WIP`, `misc`, `update`, or vague summaries.
 
-## Type selection
+## Types
 
-- `feat` — new user-visible feature → SemVer minor
-- `fix` — bug fix → SemVer patch
-- `refactor` — restructure without behavior change → no bump
-- `perf` — performance improvement → no bump unless it fixes a bug, then patch
-- `docs` — documentation only → no bump
-- `test` — tests only → no bump
-- `build` — build system or dependencies → no bump
-- `ci` — CI/CD changes → no bump
-- `chore` — maintenance or tooling not covered above → no bump
-- `style` — formatting only → no bump
-- `revert` — revert prior commit → depends on reverted change
+| Type | When | SemVer |
+|---|---|---|
+| `feat` | new feature | minor |
+| `fix` | bug fix | patch |
+| `refactor` | restructure, no behavior change | none |
+| `perf` | performance improvement | none (patch if fixes bug) |
+| `docs` | documentation only | none |
+| `test` | tests only | none |
+| `build` | build system / deps | none |
+| `ci` | CI/CD changes | none |
+| `chore` | maintenance / tooling | none |
+| `style` | formatting only | none |
+| `revert` | revert prior commit | depends |
 
-## Scope guidance
+## Scope
 
-- Use a consistent noun for the affected area when one area is clearly dominant.
-- Good scopes: `auth`, `telegram`, `memory`, `resume`, `roadmap`, `notion`.
-- Omit scope only when the change is truly cross-cutting.
-- Do not invent multiple scopes in one commit line.
+Use a consistent noun for the dominant area. Omit only when truly cross-cutting. Never multiple scopes in one commit line.
 
 ## Splitting rules
 
-Split into separate commits when any of these are true:
+Split when:
+- feature + bug fix
+- code + formatting-only cleanup
+- deps/build + application logic
+- refactor + standalone behavior change
+- generated files + loosely coupled source
 
-- new feature plus bug fix
-- code changes plus formatting-only cleanup
-- dependency/build changes plus application logic
-- refactor plus behavior change that can stand alone
-- generated files plus source changes that are not tightly coupled
+One type, one intent per commit. If you can't describe it that way, split.
 
-If you cannot describe the whole diff with one type and one intent, split it.
-
-## Body and footer guidance
-
-Add a body when the reason is not obvious from the subject line.
-
-Good footer examples:
-
-```text
-Refs: #42
-Reviewed-by: Omar Abdalla
-BREAKING CHANGE: remove legacy webhook payload format
-```
-
-## Examples
-
-Good:
-
-```text
-feat(memory): add semantic search over past conversations
-
-fix(telegram): handle empty message payloads gracefully
-
-Ollama can return an empty string when context overflows.
-Guard against it to avoid a bot crash.
-
-feat(api)!: replace rest endpoints with graphql
-
-BREAKING CHANGE: remove all /v1/rest/* routes
-
-chore(deps): upgrade pydantic to 2.11
-```
-
-Bad:
-
-```text
-fixed stuff
-Update
-WIP
-misc changes
-feat: added the thing
-```
-
-## Validation helper
-
-Use `skills/commit-message-writing/scripts/validate_commit_message.py` to lint a message before commit.
-
-Examples:
+## Validation
 
 ```bash
-python3 skills/commit-message-writing/scripts/validate_commit_message.py --message "feat(auth): add otp fallback"
-printf 'fix(api): handle nil payload\n\nGuard a crash path.' | python3 skills/commit-message-writing/scripts/validate_commit_message.py --stdin
+python3 scripts/validate_commit_message.py --message "feat(auth): add otp fallback"
 ```
-
-If the validator fails, fix the message before running `git commit`.
