@@ -304,15 +304,15 @@ class PortfolioRouter:
 
     def _tradeoff_route(self) -> RoutePlan:
         parallel = (
-            _run(Models.OPUS, role="proposal"),
             _run(Models.CODEX53, role="proposal"),
+            _run(Models.GLM5, role="proposal"),
         )
         return RoutePlan(
             mode="tradeoff",
             parallel=parallel,
             judge=_run(Models.GPT54, role="judge"),
             reason=(
-                "portfolio tradeoff: opus + gpt-5.3-codex proposals, "
+                "portfolio tradeoff: gpt-5.3-codex + glm-5 proposals, "
                 "judged by gpt-5.4"
             ),
         )

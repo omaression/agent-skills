@@ -328,7 +328,7 @@ class TestTradeoff:
     def test_tradeoff_proposals(self, router):
         plan = router.route("compare approaches for caching")
         models = {r.model for r in plan.parallel}
-        assert models == {Models.OPUS, Models.CODEX53}
+        assert models == {Models.CODEX53, Models.GLM5}
 
     def test_tradeoff_judge_is_gpt54(self, router):
         plan = router.route("choose between microservices and monolith")
@@ -419,7 +419,7 @@ class TestCacheRetention:
     def test_tradeoff_cache_retention(self, router):
         plan = router.route("evaluate tradeoffs between X and Y")
         for r in plan.parallel:
-            if r.model.startswith("anthropic/"):
+            if r.model.startswith("opencode-go/"):
                 assert r.cache_retention == "short"
             if r.model.startswith("openai-codex/"):
                 assert r.cache_retention == "long"

@@ -21,7 +21,7 @@ Route portfolio project work through buildx pipelines (full or lite) with custom
 
 | Route | When | Opus? |
 |---|---|---|
-| **tradeoff** | Comparing approaches, "X vs Y", pros/cons | Yes (proposal only) |
+| **tradeoff** | Comparing approaches, "X vs Y", pros/cons | **No** |
 | **buildx** (12-step) | Greenfield, major features, end-to-end builds | Yes (planning + judge) |
 | **buildx-lite** (7-step) | Bugfixes, refactors, scoped changes, tests, cleanup | **No** |
 
@@ -37,22 +37,22 @@ Route portfolio project work through buildx pipelines (full or lite) with custom
 
 | Role | Base model | Escalation |
 |---|---|---|
-| Planning & architecture (full) | `anthropic/claude-opus-4-6` | — |
+| Planning & architecture (full) | `opencode-go/kimi-k2.5` | — |
 | Implementation & simplify | `openai-codex/gpt-5.4` | — |
 | Code review | `anthropic/claude-sonnet-4-6` | — |
 | Boilerplate | `openai-codex/gpt-5.3-codex-spark` | → `claude-sonnet-4-6` |
 | Testing / adversarial | `opencode-go/glm-5` | → `claude-sonnet-4-6` |
-| Research & wide-context | `opencode-go/kimi-k2.5` | → `claude-opus-4-6` |
+| Research & wide-context | `opencode-go/kimi-k2.5` | → `openai-codex/gpt-5.4` |
 
 Cache: `openai-codex/*` → `long`, `opencode-go/*` → `short`, `anthropic/*` → `short`.
 
-Opus only in: full buildx judge, tradeoff proposals. Never in buildx-lite. Planning uses kimi-k2.5 for long-context architecture work. Research escalates to gpt-5.4.
+Opus only in: full buildx judge. Never in buildx-lite or tradeoff proposals. Planning uses kimi-k2.5 for long-context architecture work. Research escalates to gpt-5.4.
 
 ## Buildx pipeline (full, 12 steps)
 
 Pre-step: create or verify one short-lived branch.
 
-1. **parallel-plan-a** → `claude-opus-4-6`
+1. **parallel-plan-a** → `kimi-k2.5`
 2. **parallel-plan-b** → `gpt-5.4`
 3. **judge-plan** → `claude-opus-4-6`
 4. **boilerplate** → `gpt-5.3-codex-spark`
@@ -87,7 +87,7 @@ Exit rule: PR not ready until tests pass and diff is minimal.
 
 ## Tradeoff protocol
 
-Proposals: `claude-opus-4-6` + `gpt-5.3-codex`. Judge: `gpt-5.4`.
+Proposals: `gpt-5.3-codex` + `glm-5`. Judge: `gpt-5.4`.
 
 ## Judge output contract
 
@@ -102,9 +102,11 @@ Same as `advanced-dispatcher`.
 1. Run `tests/test_portfolio_dispatcher.py` — all pass.
 2. Confirm model assignments match table.
 3. Confirm escalation paths resolve correctly.
-4. Confirm tradeoff uses opus + gpt-5.3-codex, judged by gpt-5.4.
+4. Confirm tradeoff uses gpt-5.3-codex + glm-5, judged by gpt-5.4.
 5. Confirm cache retention matches table.
 6. Confirm no legacy flags accepted.
 7. Confirm scoped work → buildx-lite (no Opus).
 8. Confirm greenfield → full buildx.
 9. Confirm judge output includes branch plan and PR/CI test gates.
+es.
+gates.
