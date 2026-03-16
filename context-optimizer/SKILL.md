@@ -2,7 +2,6 @@
 name: context-optimizer
 description: Slash OpenClaw token costs and prevent context overflow. Use whenever the user mentions high API costs, expensive tokens, context truncation, context overflow, slow responses in long sessions, noisy memory recall, bloated bootstrap, or wants to tune openclaw.json for efficiency. Also trigger when the user says their agent "uses too many tokens" or tasks feel "wasteful." This skill is aggressive and opinionated — it gives concrete configs to paste, not menus of knobs.
 ---
-
 # Context Optimizer
 
 Goal: cut input tokens to the minimum that preserves task quality.
@@ -11,26 +10,21 @@ Principle: diagnose → apply the single highest-impact fix → re-measure → r
 
 ## Fast path — use the script
 
-The bundled script audits the config and applies defaults in one command, avoiding multiple tool calls:
+Use the bundled script to audit and apply defaults quickly:
 
 ```bash
-# Audit only — shows current settings and flags issues
 python scripts/context_optimizer.py
-
-# Apply balanced defaults (good savings, safe recall)
 python scripts/context_optimizer.py --apply
-
-# Apply aggressive defaults (max savings, may need loosening)
 python scripts/context_optimizer.py --apply --aggressive
 ```
 
-The script auto-detects the config path, validates after writing, and rolls back on failure. Use `--config <path>` to target a specific file.
+The script auto-detects config path, validates after writing, and rolls back on failure. Use `--config <path>` for a specific file.
 
-After running the script, check `/status` and `/usage tokens` to confirm improvement. If specific areas still need manual tuning, use the fixes below.
+After running, verify with `/status` and `/usage tokens`.
 
 ## Step 1 — Diagnose (manual path)
 
-If the script is unavailable or you need finer control, run these commands before changing anything:
+If script use is not enough or unavailable, run:
 
 ```
 /status
@@ -38,140 +32,51 @@ If the script is unavailable or you need finer control, run these commands befor
 /usage tokens
 ```
 
-Read the output. Identify which category dominates token usage — bootstrap, tool output, memory, or session length. Then go straight to the matching fix below.
+Identify the dominant sink: bootstrap, tool output, memory retrieval, or long-session buildup.
 
 ## Step 2 — Apply fixes in impact order
+Work top-down and stop when usage is acceptable.
 
-Work top-down. Stop as soon as usage is acceptable.
+### Fix 1: Shrink bootstrap files
 
-### Fix 1: Shrink bootstrap files (usually the #1 sink)
+Trim `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `USER.md`, `MEMORY.md`, and heavy skill files. Remove filler and move rarely-needed detail into references read on demand.
 
-Bootstrap files (`AGENTS.md`, `SOUL.md`, `TOOLS.md`, `USER.md`, `MEMORY.md`, custom skill files) are injected into every single LLM call. Oversized bootstrap is the most expensive problem because it compounds on every turn.
-
-Actions:
-- Audit each file: `cat` it out, count characters. Anything over 2000 chars is suspect.
-- Rewrite for brevity. Strip filler, examples the agent rarely needs, redundant phrasing.
-- Move rarely-needed reference material into files the agent can `cat` on demand instead of injecting every turn.
-
-Config:
-```json
-{
-  "agents": {
-    "defaults": {
-      "bootstrapMaxChars": 3000,
-      "bootstrapTotalMaxChars": 12000,
-      "imageMaxDimensionPx": 768
-    }
-  }
-}
-```
-
-`imageMaxDimensionPx` at 768 instead of the default (often 1024+) saves significant vision tokens in screenshot-heavy workflows. Drop to 512 if pixel precision is not needed.
+Set smaller bootstrap/image limits and related defaults. See `references/configs.md` for full config examples.
 
 ### Fix 2: Throttle tool output
 
-Web search and file reads dump large payloads into context. These compound in long sessions because old results linger.
+Reduce web search/fetch payloads and prefer targeted reads (line ranges/excerpts) over full dumps.
 
-Config:
-```json
-{
-  "tools": {
-    "web": {
-      "search": { "maxResults": 3 },
-      "fetch": { "maxCharsCap": 4000 }
-    }
-  }
-}
-```
-
-Also change agent behavior: read only relevant file sections (line ranges), not entire files. Fetch excerpts, not full pages.
+See `references/configs.md` for full config examples.
 
 ### Fix 3: Prune stale tool results
 
-In long sessions, old tool output (file reads, search results, command output) stays in context even when it is no longer relevant. Context pruning trims these automatically.
+Enable context pruning so older, large tool payloads expire automatically while recent turns stay intact.
 
-Config:
-```json
-{
-  "agents": {
-    "defaults": {
-      "contextPruning": {
-        "mode": "cache-ttl",
-        "ttl": "30m",
-        "keepLastAssistants": 3,
-        "minPrunableToolChars": 500
-      }
-    }
-  }
-}
-```
-
-This keeps the last 3 assistant turns' tool results intact and prunes anything older than 30 minutes that exceeds 500 chars. Tighten `ttl` to `"15m"` for fast-paced sessions.
+See `references/configs.md` for full config examples.
 
 ### Fix 4: Tighten memory retrieval
 
-Memory search results are injected into context before each turn. Too many results or low-quality matches waste tokens.
+Lower recall volume and raise relevance thresholds; keep deduplication and recency bias enabled. Narrow `memorySearch.extraPaths` if too broad.
 
-Config:
-```json
-{
-  "agents": {
-    "defaults": {
-      "memorySearch": {
-        "query": {
-          "maxResults": 3,
-          "minScore": 0.75,
-          "hybrid": {
-            "mmr": { "enabled": true, "lambda": 0.7 },
-            "temporalDecay": { "enabled": true, "halfLifeDays": 14 }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-- `maxResults: 3` — inject at most 3 memory chunks (default is often 5–10).
-- `minScore: 0.75` — drop weak matches.
-- `mmr` — deduplicate similar chunks so you don't get three variations of the same note.
-- `temporalDecay` — deprioritize stale daily notes and old logs.
-
-If recall quality drops, lower `minScore` to 0.6 or raise `maxResults` to 5.
-
-Also check `memorySearch.extraPaths` — if it points at broad directories or entire repos, remove or narrow those paths.
+See `references/configs.md` for full config examples.
 
 ### Fix 5: Session hygiene
 
-Long conversations accumulate context even with pruning. Use built-in session controls:
+Use `/compact` mid-session, `/new` for topic shifts, `/reset` when recovery is unlikely. Enable automatic compaction for sessions that routinely run long.
 
-- `/compact` — summarizes older history, keeps the thread alive. Use mid-session.
-- `/new` — fresh session. Use on hard topic changes.
-- `/reset` — full reset. Use when the session is unsalvageable.
-
-For sessions that tend to run long, configure automatic compaction:
-```json
-{
-  "agents": {
-    "defaults": {
-      "compaction": { "enabled": true }
-    }
-  }
-}
-```
+See `references/configs.md` for full config examples.
 
 ## Step 3 — Validate
 
 After each change:
-
-1. `openclaw config validate` — catch syntax errors.
-2. Restart the gateway if prompted.
-3. Re-run `/status` and `/usage tokens`.
-4. Spot-check that the agent still recalls what it needs (run a representative task).
-5. If recall broke, back off the last change by one notch.
+1. Run `openclaw config validate`.
+2. Restart gateway if prompted.
+3. Re-check `/status` and `/usage tokens`.
+4. Spot-check recall on a representative task.
+5. If quality drops, loosen the most recent change one notch.
 
 ## Quick-reference: symptom → fix
-
 | Symptom | Go to |
 |---|---|
 | Every turn is expensive, even simple ones | Fix 1 (bootstrap) |
@@ -181,57 +86,5 @@ After each change:
 | Screenshots are costly | Fix 1, set `imageMaxDimensionPx: 512` |
 | "Context too large" / truncation errors | Fix 5 (`/compact` or `/new`), then Fix 3 |
 
-## Aggressive all-in-one config
-
-If the user wants maximum savings and is willing to tune back up from there:
-
-```json
-{
-  "agents": {
-    "defaults": {
-      "bootstrapMaxChars": 2500,
-      "bootstrapTotalMaxChars": 10000,
-      "imageMaxDimensionPx": 512,
-      "compaction": { "enabled": true },
-      "contextPruning": {
-        "mode": "cache-ttl",
-        "ttl": "15m",
-        "keepLastAssistants": 2,
-        "minPrunableToolChars": 300
-      },
-      "memorySearch": {
-        "query": {
-          "maxResults": 2,
-          "minScore": 0.8,
-          "hybrid": {
-            "mmr": { "enabled": true, "lambda": 0.7 },
-            "temporalDecay": { "enabled": true, "halfLifeDays": 7 }
-          }
-        }
-      }
-    }
-  },
-  "tools": {
-    "web": {
-      "search": { "maxResults": 2 },
-      "fetch": { "maxCharsCap": 3000 }
-    }
-  }
-}
-```
-
-Start here, then loosen any knob where quality suffers.
-
-## Commands cheat sheet
-
-| Command | Purpose |
-|---|---|
-| `openclaw config file` | Show active config path |
-| `openclaw config validate` | Validate config syntax |
-| `/status` | Session overview |
-| `/context list` | List context entries |
-| `/context detail` | Show context with sizes |
-| `/usage tokens` | Token usage breakdown |
-| `/compact` | Summarize + trim session |
-| `/new` | Fresh session |
-| `/reset` | Hard reset |
+See `references/aggressive-config.md` for the full aggressive all-in-one config.
+See `references/commands.md` for the full commands cheat sheet.
