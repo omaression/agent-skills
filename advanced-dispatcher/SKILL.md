@@ -82,24 +82,10 @@ Pre-step: create or verify one short-lived branch for the scoped work.
 Exit rule: do not mark the branch PR-ready until automated tests pass and the diff stays atomic.
 
 ## Judge output contract
-
-Judge-plan must emit:
-1. Selected architecture
-2. Why it won
-3. Project/file structure
-4. Implementation order
-5. Branch plan (name, scope boundary)
-6. Test plan
-7. PR/CI test gates
-8. Simplification targets
-9. Done criteria
-
-For `buildx:`, also: risk list, likely failure modes, review checklist.
+See `../shared/contracts.md` (base section).
 
 ## Simplify contract
-
-Must: remove dead code, speculative abstractions, duplication, over-engineered interfaces. Prefer fewer files when clarity is preserved.
-Must not: rewrite architecture, add abstractions, expand scope.
+See `../shared/contracts.md`.
 
 ## Implementation contract
 
