@@ -9,9 +9,28 @@ Goal: cut input tokens to the minimum that preserves task quality.
 
 Principle: diagnose → apply the single highest-impact fix → re-measure → repeat.
 
-## Step 1 — Diagnose
+## Fast path — use the script
 
-Run these three commands (or ask the user to run them) before changing anything:
+The bundled script audits the config and applies defaults in one command, avoiding multiple tool calls:
+
+```bash
+# Audit only — shows current settings and flags issues
+python scripts/context_optimizer.py
+
+# Apply balanced defaults (good savings, safe recall)
+python scripts/context_optimizer.py --apply
+
+# Apply aggressive defaults (max savings, may need loosening)
+python scripts/context_optimizer.py --apply --aggressive
+```
+
+The script auto-detects the config path, validates after writing, and rolls back on failure. Use `--config <path>` to target a specific file.
+
+After running the script, check `/status` and `/usage tokens` to confirm improvement. If specific areas still need manual tuning, use the fixes below.
+
+## Step 1 — Diagnose (manual path)
+
+If the script is unavailable or you need finer control, run these commands before changing anything:
 
 ```
 /status
