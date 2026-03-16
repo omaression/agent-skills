@@ -90,12 +90,10 @@ Exit rule: PR not ready until tests pass and diff is minimal.
 Proposals: `gpt-5.3-codex` + `glm-5`. Judge: `gpt-5.4`.
 
 ## Judge output contract
-
-Same as `advanced-dispatcher` contract, plus: risk list, likely failure modes, review checklist.
+See `../shared/contracts.md` (base + buildx extension).
 
 ## Simplify contract
-
-Same as `advanced-dispatcher`.
+See `../shared/contracts.md`.
 
 ## Validation checklist
 
@@ -108,5 +106,3 @@ Same as `advanced-dispatcher`.
 7. Confirm scoped work → buildx-lite (no Opus).
 8. Confirm greenfield → full buildx.
 9. Confirm judge output includes branch plan and PR/CI test gates.
-es.
-gates.
