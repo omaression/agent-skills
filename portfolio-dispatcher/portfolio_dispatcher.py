@@ -137,7 +137,7 @@ class Complexity(Enum):
 
 # Escalation map: (base_model) → escalation_model
 _ESCALATION_TARGETS = {
-    Models.KIMI:  Models.OPUS,     # research → opus
+    Models.KIMI:  Models.GPT54,    # research → gpt-5.4
     Models.SPARK: Models.SONNET,   # boilerplate → sonnet
     Models.GLM5:  Models.SONNET,   # testing → sonnet
 }
@@ -304,15 +304,15 @@ class PortfolioRouter:
 
     def _tradeoff_route(self) -> RoutePlan:
         parallel = (
-            _run(Models.OPUS, role="proposal"),
             _run(Models.CODEX53, role="proposal"),
+            _run(Models.GLM5, role="proposal"),
         )
         return RoutePlan(
             mode="tradeoff",
             parallel=parallel,
             judge=_run(Models.GPT54, role="judge"),
             reason=(
-                "portfolio tradeoff: opus + gpt-5.3-codex proposals, "
+                "portfolio tradeoff: gpt-5.3-codex + glm-5 proposals, "
                 "judged by gpt-5.4"
             ),
         )
@@ -325,7 +325,7 @@ class PortfolioRouter:
         steps = (
             # 1-2: parallel planning — opus leads, gpt-5.4 challenges
             _step(
-                "parallel-plan-a", Models.OPUS,
+                "parallel-plan-a", Models.KIMI,
                 "produce architecture and implementation outline",
             ),
             _step(
@@ -385,7 +385,7 @@ class PortfolioRouter:
                 complexity=h("test-a"),
             ),
 
-            # 11: second wide-context review — kimi, escalate to opus
+            # 11: second wide-context review — kimi, escalate to gpt-5.4
             _step(
                 "review-resolve-b", Models.KIMI,
                 "perform second wide-context review and fix pass",
@@ -494,3 +494,4 @@ def escalated_router(**step_overrides: Complexity) -> PortfolioRouter:
         )
     """
     return PortfolioRouter(hints=StepComplexityHints(overrides=step_overrides))
+

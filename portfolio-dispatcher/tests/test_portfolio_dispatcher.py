@@ -84,9 +84,9 @@ class TestStandardModelAssignments:
         plan = router.route("scaffold the entire project from scratch")
         return {s.name: s.run.model for s in plan.pipeline}
 
-    def test_planning_uses_opus(self, router):
+    def test_planning_uses_correct_models(self, router):
         m = self._model_map(router)
-        assert m["parallel-plan-a"] == Models.OPUS
+        assert m["parallel-plan-a"] == Models.KIMI
         assert m["judge-plan"] == Models.OPUS
 
     def test_alternate_plan_uses_gpt54(self, router):
@@ -278,11 +278,11 @@ class TestEscalation:
         m = {s.name: s.run.model for s in plan.pipeline}
         assert m["final-test"] == Models.SONNET
 
-    def test_review_resolve_b_escalates_to_opus(self):
+    def test_review_resolve_b_escalates_to_gpt54(self):
         r = escalated_router(**{"review-resolve-b": Complexity.COMPLEX})
         plan = r.route("build the whole thing")
         m = {s.name: s.run.model for s in plan.pipeline}
-        assert m["review-resolve-b"] == Models.OPUS
+        assert m["review-resolve-b"] == Models.GPT54
 
     def test_non_escalatable_steps_unchanged(self):
         """Steps without escalation paths stay on their base model
@@ -302,9 +302,9 @@ class TestEscalation:
         m = {s.name: s.run.model for s in plan.pipeline}
         assert m["boilerplate"] == Models.SONNET
         assert m["test"] == Models.SONNET
-        assert m["review-resolve-b"] == Models.OPUS
+        assert m["review-resolve-b"] == Models.GPT54
         assert m["implement"] == Models.GPT54
-        assert m["parallel-plan-a"] == Models.OPUS
+        assert m["parallel-plan-a"] == Models.KIMI
 
     def test_lite_escalation_works(self):
         """Escalation hints apply to lite pipeline steps too."""
@@ -328,7 +328,7 @@ class TestTradeoff:
     def test_tradeoff_proposals(self, router):
         plan = router.route("compare approaches for caching")
         models = {r.model for r in plan.parallel}
-        assert models == {Models.OPUS, Models.CODEX53}
+        assert models == {Models.CODEX53, Models.GLM5}
 
     def test_tradeoff_judge_is_gpt54(self, router):
         plan = router.route("choose between microservices and monolith")
@@ -419,7 +419,7 @@ class TestCacheRetention:
     def test_tradeoff_cache_retention(self, router):
         plan = router.route("evaluate tradeoffs between X and Y")
         for r in plan.parallel:
-            if r.model.startswith("anthropic/"):
+            if r.model.startswith("opencode-go/"):
                 assert r.cache_retention == "short"
             if r.model.startswith("openai-codex/"):
                 assert r.cache_retention == "long"
@@ -479,7 +479,7 @@ class TestOpusContainment:
         opus_steps = {
             s.name for s in plan.pipeline if s.run.model == Models.OPUS
         }
-        allowed = {"parallel-plan-a", "judge-plan"}
+        allowed = {"judge-plan"}
         assert opus_steps == allowed, (
             f"Opus outside allowed slots: {opus_steps - allowed}"
         )
@@ -497,7 +497,7 @@ class TestOpusContainment:
         opus_steps = {
             s.name for s in plan.pipeline if s.run.model == Models.OPUS
         }
-        allowed = {"parallel-plan-a", "judge-plan", "review-resolve-b"}
+        allowed = {"judge-plan"}
         assert opus_steps == allowed
 
 
@@ -513,9 +513,9 @@ class TestAnthropicContainment:
     def test_standard_buildx_anthropic_slots(self, router):
         plan = router.route("build the complete module from scratch")
         anth = set(self._anthropic_steps(plan))
-        # Opus: parallel-plan-a, judge-plan
+        # Opus: judge-plan
         # Sonnet: review-resolve-a
-        allowed = {"parallel-plan-a", "judge-plan", "review-resolve-a"}
+        allowed = {"judge-plan", "review-resolve-a"}
         assert anth == allowed, (
             f"Anthropic models outside allowed slots: {anth - allowed}"
         )
@@ -529,10 +529,10 @@ class TestAnthropicContainment:
         plan = r.route("build everything from scratch now")
         anth = set(self._anthropic_steps(plan))
         allowed = {
-            "parallel-plan-a", "judge-plan",       # always opus
-            "review-resolve-a",                     # always sonnet
-            "boilerplate", "test",                  # escalated → sonnet
-            "review-resolve-b",                     # escalated → opus
+            "judge-plan",                          # always opus
+            "review-resolve-a",                    # always sonnet
+            "boilerplate", "test",                 # escalated → sonnet
+            # review-resolve-b escalates to gpt-5.4, not anthropic
         }
         assert anth == allowed
 
@@ -566,3 +566,4 @@ class TestConvenience:
         r = full_router()
         plan = r.route("fix the broken test")
         assert plan.mode == "buildx"
+
