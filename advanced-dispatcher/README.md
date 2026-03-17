@@ -57,7 +57,7 @@ Do not trigger tradeoff mode just because the prompt contains a vague standalone
 
 ## Files
 
-- `SKILL.md` — operating instructions
+- `SKILL.md` — operating instructions, including the judge/simplify contracts (self-contained)
 - `dispatcher.py` — deterministic route planner
 - `test_dispatcher.py` — unit tests and smoke coverage
 
